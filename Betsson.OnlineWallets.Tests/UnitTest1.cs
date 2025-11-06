@@ -109,6 +109,22 @@ namespace Betsson.OnlineWallets.Tests
         }
 
         [Test]
+        public void WithdrawInvalidAmount_BadRequest()
+        {
+            //Arrange: setup all the information to do the request  
+            RestClient client = new RestClient(TestsEndpoints.postWithdrawUrl);
+            RestRequest restRequest = new RestRequest(TestsEndpoints.postWithdrawUrl, Method.Post)
+                .AddJsonBody(new Dictionary<string, string> { { "amount", "b" } });
+
+            //Act: make the request
+            RestResponse restResponse = client.Execute(restRequest);
+
+            //Assert: validate responses            
+            Assert.That(restResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(restResponse.Content, Does.Contain("One or more validation errors occurred"));
+        }
+
+        [Test]
         public void DepositNegativeAmount_BadRequest()
         {
 
@@ -124,6 +140,22 @@ namespace Betsson.OnlineWallets.Tests
             Assert.That(restResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
             Assert.That(restResponse.Content, Does.Contain("'Amount' must be greater than or equal to '0'"));
 
+        }
+
+        [Test]
+        public void DepositInvalidAmount_BadRequest() 
+        {
+            //Arrange: setup all the information to do the request  
+            RestClient client = new RestClient(TestsEndpoints.postDepositUrl);
+            var restRequest = new RestRequest(TestsEndpoints.postDepositUrl, Method.Post)
+                .AddJsonBody(new Dictionary<string, string> { { "amount", "b" } });
+
+            //Act: make the request
+            RestResponse restResponse = client.Execute(restRequest);
+
+            //Assert: validate responses
+            Assert.That(restResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(restResponse.Content, Does.Contain("One or more validation errors occurred"));
         }
         #endregion
 
