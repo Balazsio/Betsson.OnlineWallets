@@ -13,7 +13,7 @@ namespace Betsson.OnlineWallets.Tests
         {
         }
 
-        #region Endpoint testing basics. OK responses, positive path.
+        #region Endpoint tests
 
         [Test]
         public void GetBalance_OK_Response()
@@ -36,7 +36,7 @@ namespace Betsson.OnlineWallets.Tests
             //Arrange: setup all the information to do the request  
             RestClient client = new RestClient(TestsEndpoints.postDepositUrl);
             var restRequest = new RestRequest(TestsEndpoints.postDepositUrl, Method.Post)
-                .AddJsonBody(new Dictionary<string, double> {{"amount" , 50 }});
+                .AddJsonBody(new Dictionary<string, double> { { "amount", 50 } });
 
             //Act: make the request
             RestResponse restResponse = client.Execute(restRequest);
@@ -65,35 +65,71 @@ namespace Betsson.OnlineWallets.Tests
 
         #endregion
 
+        #region End2End tests 
         [Test]
         public void WithdrawMoreThanBalance_ThrowsInsufficientBalanceException()
         {
             //get balance
             var client = new RestClient(TestsEndpoints.getBalanceUrl);
-            var restRequest = new RestRequest(TestsEndpoints.getBalanceUrl, Method.Get);            
+            var restRequest = new RestRequest(TestsEndpoints.getBalanceUrl, Method.Get);
             RestResponse restResponse = client.Execute(restRequest);
-            
+
             dynamic data = JObject.Parse(restResponse.Content);
             double currentBalance = data.amount;
-            double moreThanCurrentBalance = currentBalance + 1; 
+            double moreThanCurrentBalance = currentBalance + 1;
 
-            Console.WriteLine("*Your balance before withdraw:  "+currentBalance);
-            
+            Console.WriteLine("*Your balance before withdraw:  " + currentBalance);
+
             //Withdraw more than current balance
             client = new RestClient(TestsEndpoints.postWithdrawUrl);
             restRequest = new RestRequest(TestsEndpoints.postWithdrawUrl, Method.Post)
                 .AddJsonBody(new Dictionary<string, double> { { "amount", moreThanCurrentBalance } });
-            
+
             restResponse = client.Execute(restRequest);
 
             ////Assert: validate responses           
             Assert.That(restResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
             Assert.That(restResponse.Content, Does.Contain("InsufficientBalanceException"));
-            
         }
 
+        [Test]
+        public void WithdrawNegativeAmount_BadRequest()
+        {
+            //Arrange: setup all the information to do the request  
+            RestClient client = new RestClient(TestsEndpoints.postWithdrawUrl);
+            RestRequest restRequest = new RestRequest(TestsEndpoints.postWithdrawUrl, Method.Post)
+                .AddJsonBody(new Dictionary<string, double> { { "amount", -50 } });
 
+            //Act: make the request
+            RestResponse restResponse = client.Execute(restRequest);
 
+            //Assert: validate responses            
+            Assert.That(restResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(restResponse.Content, Does.Contain("'Amount' must be greater than or equal to '0'"));
+        }
+
+        [Test]
+        public void DepositNegativeAmount_BadRequest()
+        {
+
+            //Arrange: setup all the information to do the request  
+            RestClient client = new RestClient(TestsEndpoints.postDepositUrl);
+            var restRequest = new RestRequest(TestsEndpoints.postDepositUrl, Method.Post)
+                .AddJsonBody(new Dictionary<string, double> { { "amount", -50 } });
+
+            //Act: make the request
+            RestResponse restResponse = client.Execute(restRequest);
+
+            //Assert: validate responses
+            Assert.That(restResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(restResponse.Content, Does.Contain("'Amount' must be greater than or equal to '0'"));
+
+        }
+        #endregion
+
+        #region unit tests
+
+        #endregion
     }
 
 }
