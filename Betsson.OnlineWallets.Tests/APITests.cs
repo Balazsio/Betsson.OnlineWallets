@@ -6,7 +6,7 @@ using static System.Net.WebRequestMethods;
 
 namespace Betsson.OnlineWallets.Tests
 {
-    public class Tests
+    public class APITests
     {
         [SetUp]
         public void Setup()
@@ -66,6 +66,83 @@ namespace Betsson.OnlineWallets.Tests
         #endregion
 
         #region End2End tests 
+
+        [Test]
+        public void DepositAmount_BalanceEqualsToTheSumOfDepositPlusBalance()
+        {
+            //get initial balance
+            var client = new RestClient(TestsEndpoints.getBalanceUrl);
+            var restRequest = new RestRequest(TestsEndpoints.getBalanceUrl, Method.Get);
+            RestResponse restResponse = client.Execute(restRequest);
+
+            dynamic data = JObject.Parse(restResponse.Content);
+            double balanceBeforeDeposit = data.amount;
+            double depositAmount = 100;
+
+            //deposit
+            client = new RestClient(TestsEndpoints.postDepositUrl);
+            restRequest = new RestRequest(TestsEndpoints.postDepositUrl, Method.Post)
+                .AddJsonBody(new Dictionary<string, double> { { "amount", depositAmount } });
+            restResponse = client.Execute(restRequest);
+
+
+            double expectedBalanceAfterDeposit = balanceBeforeDeposit + depositAmount;
+
+            //get balance after deposit
+            client = new RestClient(TestsEndpoints.getBalanceUrl);
+            restRequest = new RestRequest(TestsEndpoints.getBalanceUrl, Method.Get);
+            restResponse = client.Execute(restRequest);
+
+            data = JObject.Parse(restResponse.Content);
+            double balanceAfterDeposit = data.amount;
+
+            //Assert: new balance = deposit + balance            
+            Assert.That(expectedBalanceAfterDeposit.Equals(balanceAfterDeposit));
+        }
+
+        [Test]
+        public void WithdrawAmount_BalanceEqualsToTheOldBalanceMinusWithdraw()
+        {
+            double depositAmount = 100;
+
+            //deposit 100 so balance is not zero
+            var client = new RestClient(TestsEndpoints.postDepositUrl);
+            var restRequest = new RestRequest(TestsEndpoints.postDepositUrl, Method.Post)
+                .AddJsonBody(new Dictionary<string, double> { { "amount", depositAmount } });
+            var restResponse = client.Execute(restRequest);
+
+            //get balance after deposit
+            client = new RestClient(TestsEndpoints.getBalanceUrl);
+            restRequest = new RestRequest(TestsEndpoints.getBalanceUrl, Method.Get);
+            restResponse = client.Execute(restRequest);
+
+            dynamic data = JObject.Parse(restResponse.Content);
+            double balanceAfterDeposit = data.amount;
+
+            //withdraw
+            double withdrawAmount = 50;
+
+            client = new RestClient(TestsEndpoints.postWithdrawUrl);
+            restRequest = new RestRequest(TestsEndpoints.postWithdrawUrl, Method.Post)
+               .AddJsonBody(new Dictionary<string, double> { { "amount", withdrawAmount } });
+
+            restResponse = client.Execute(restRequest);
+
+            double expectedCurrentbalance = balanceAfterDeposit - withdrawAmount;
+
+            //get balance after withdraw
+            client = new RestClient(TestsEndpoints.getBalanceUrl);
+            restRequest = new RestRequest(TestsEndpoints.getBalanceUrl, Method.Get);
+            restResponse = client.Execute(restRequest);
+
+            data = JObject.Parse(restResponse.Content);
+            double balanceAfterWithdraw = data.amount;
+
+            Assert.That(expectedCurrentbalance.Equals(balanceAfterWithdraw));
+
+        }
+
+
         [Test]
         public void WithdrawMoreThanBalance_ThrowsInsufficientBalanceException()
         {
@@ -143,7 +220,7 @@ namespace Betsson.OnlineWallets.Tests
         }
 
         [Test]
-        public void DepositInvalidAmount_BadRequest() 
+        public void DepositInvalidAmount_BadRequest()
         {
             //Arrange: setup all the information to do the request  
             RestClient client = new RestClient(TestsEndpoints.postDepositUrl);
@@ -159,9 +236,7 @@ namespace Betsson.OnlineWallets.Tests
         }
         #endregion
 
-        #region unit tests
 
-        #endregion
     }
 
 }
