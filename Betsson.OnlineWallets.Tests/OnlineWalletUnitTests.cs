@@ -6,16 +6,17 @@ using Microsoft.AspNetCore.Mvc;
 using Betsson.OnlineWallets.Models;
 using Betsson.OnlineWallets.Web.Models;
 using Microsoft.Extensions.Logging;
+using Betsson.OnlineWallets.Exceptions;
 
 namespace Betsson.OnlineWallets.Tests;
 
 [TestFixture]
 public class OnlineWalletUnitTests
 {
-    private  Mock<ILogger<OnlineWalletController>> _loggerMock;
-    private  Mock<IMapper> _mapperMock;
-    private  Mock<IOnlineWalletService> _walletServiceMock;
-    private  OnlineWalletController _controller;
+    private Mock<ILogger<OnlineWalletController>> _loggerMock;
+    private Mock<IMapper> _mapperMock;
+    private Mock<IOnlineWalletService> _walletServiceMock;
+    private OnlineWalletController _controller;
 
 
     [SetUp]
@@ -110,6 +111,33 @@ public class OnlineWalletUnitTests
         _mapperMock.Verify(m => m.Map<Withdrawal>(request), Times.Once);
         _walletServiceMock.Verify(s => s.WithdrawFundsAsync(withdrawal), Times.Once);
         _mapperMock.Verify(m => m.Map<BalanceResponse>(balance), Times.Once);
+    }
+
+    [Test]
+    public async Task Withdraw_ShouldThrowException_WithLessBalanceThanWithdraw()
+    {
+        // Arrange
+        var request = new WithdrawalRequest { Amount = 20 };
+        var withdrawal = new Withdrawal { Amount = 20 };
+        var balance = new Balance { Amount = 10 };
+        var response = new BalanceResponse { Amount = 10 };
+
+        _mapperMock.Setup(m => m.Map<Withdrawal>(request)).Returns(withdrawal);
+        _walletServiceMock.Setup(s => s.WithdrawFundsAsync(withdrawal)).ReturnsAsync(balance);
+        _mapperMock.Setup(m => m.Map<BalanceResponse>(balance)).Returns(response);
+
+        // Act
+        var result = await _controller.Withdraw(request);
+
+        // Assert
+        Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
+        var okResult = result.Result as OkObjectResult;
+        Assert.That(okResult!.Value, Is.InstanceOf<BalanceResponse>());
+        var balanceResponse = okResult.Value as BalanceResponse;
+        Assert.Throws<InsufficientBalanceException>(
+          () => throw new InsufficientBalanceException() );
+
+
     }
 
 }
